@@ -1,4 +1,9 @@
-
+//
+//  EmojiCell 2.swift
+//  Tracker
+//
+//  Created by Niykee Moore on 16.10.2024.
+//
 
 import UIKit
 
@@ -38,7 +43,7 @@ final class EmojiCell: UICollectionViewCell {
     func configure(with selectedEmoji: String, isSelected: Bool) {
         emoji.text = selectedEmoji
         if isSelected {
-            contentView.backgroundColor = .ccGray
+            contentView.backgroundColor = .ccEmojiBackground
             contentView.layer.cornerRadius = 16
         } else {
             contentView.backgroundColor = .clear

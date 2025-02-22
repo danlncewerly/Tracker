@@ -1,4 +1,9 @@
-
+//
+//  ColorCell 2.swift
+//  Tracker
+//
+//  Created by Niykee Moore on 16.10.2024.
+//
 
 import UIKit
 
@@ -51,7 +56,7 @@ final class ColorCell: UICollectionViewCell {
     func configure(with selectedColor: UIColor, isSelected: Bool) {
         if isSelected {
             mainColorContainer.layer.borderWidth = 3
-            mainColorContainer.layer.cornerRadius = 16
+            mainColorContainer.layer.cornerRadius = 8
             mainColorContainer.layer.borderColor = selectedColor.cgColor.copy(alpha: 0.3)
         } else {
             color.backgroundColor = selectedColor
