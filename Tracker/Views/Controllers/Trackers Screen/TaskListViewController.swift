@@ -7,8 +7,6 @@ final class TaskListViewController: UIViewController, UISearchBarDelegate,
     //MARK: - Properties
     
     private let viewModel: TaskListViewModel
-    private var categories: [TrackerCategory] = []
-    private var currentDate: Date
     
     private lazy var taskDatePicker: UIDatePicker = {
         let datePicker = UIDatePicker()
@@ -45,7 +43,7 @@ final class TaskListViewController: UIViewController, UISearchBarDelegate,
         layout.minimumLineSpacing = 0
         layout.minimumInteritemSpacing = 9
         layout.sectionInsetReference = .fromContentInset
-        layout.sectionInset = UIEdgeInsets(top: 36, left: 0, bottom: 0, right: 0)
+        layout.sectionInset = UIEdgeInsets(top: 12, left: 0, bottom: 0, right: 0)
         return layout
     }()
     
@@ -63,22 +61,13 @@ final class TaskListViewController: UIViewController, UISearchBarDelegate,
     
     init(viewModel: TaskListViewModel) {
         self.viewModel = viewModel
-        self.currentDate = viewModel.currentDate
         super.init(nibName: nil, bundle: nil)
-        setupBindings()
     }
     
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
     
-    private func setupBindings() {
-        viewModel.onCategoriesUpdated = { [weak self] updatedCategories in
-            guard let self else { return }
-            self.categories = updatedCategories
-            self.collectionView.reloadData()
-        }
-    }
     // MARK: - Lifecycle Methods
     
     override func viewDidLoad() {
@@ -86,6 +75,12 @@ final class TaskListViewController: UIViewController, UISearchBarDelegate,
         configureUI()
         configureSearchBar()
         configureConstraints()
+        
+        viewModel.onDataGetChanged = { [weak self] in
+            DispatchQueue.main.async {
+                self?.collectionView.reloadData()
+            }
+        }
     }
     
     // MARK: - UI Setup
@@ -150,11 +145,11 @@ final class TaskListViewController: UIViewController, UISearchBarDelegate,
     // MARK: - UICollectionViewDataSource
     
     func numberOfSections(in collectionView: UICollectionView) -> Int {
-        return viewModel.categories.count
+        return viewModel.numberOfSections()
     }
     
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        return viewModel.tasksForDate(viewModel.selectedDay).count
+        return viewModel.numberOfItems(in: section)
     }
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
@@ -162,21 +157,27 @@ final class TaskListViewController: UIViewController, UISearchBarDelegate,
             let cell = collectionView.dequeueReusableCell(withReuseIdentifier: TaskCell.reuseIdentifier, for: indexPath) as? TaskCell
         else { return UICollectionViewCell() }
         
-        let tasksForSelectedDay = viewModel.tasksForDate(viewModel.selectedDay)
+        let tasksForSelectedDay = viewModel.fetchTasksForDate(viewModel.selectedDay)
         let task = tasksForSelectedDay[indexPath.item]
         
-        let isCompleted = viewModel.isTaskCompleted(task.id, for: viewModel.selectedDay)
+        let isCompleted = viewModel.isTaskCompleted(for: task, on: viewModel.selectedDay)
         cell.updateButtonImage(isCompleted: isCompleted)
         
         let completedDaysCount = viewModel.completedDaysCount(for: task.id)
         cell.updateDayCountLabel(with: completedDaysCount)
-        
         cell.configure(with: task)
+        
+        viewModel.onCompletedDaysCountUpdated = { [weak self, weak cell] in
+            guard let self = self, let cell = cell else { return }
+            
+            let updatedCount = self.viewModel.completedDaysCount(for: task.id)
+            cell.updateDayCountLabel(with: updatedCount)
+        }
         
         cell.onCompleteTaskButtonTapped = { [weak self] in
             guard let self = self else { return }
-            self.viewModel.toggleTaskCompletion(task, on: self.viewModel.selectedDay)
-            cell.updateButtonImage(isCompleted: self.viewModel.isTaskCompleted(task.id, for: self.viewModel.selectedDay))
+            self.viewModel.toggleCompletionStatus(task, on: self.viewModel.selectedDay)
+            cell.updateButtonImage(isCompleted: self.viewModel.isTaskCompleted(for: task, on: self.viewModel.selectedDay))
             
             let updatedCount = self.viewModel.completedDaysCount(for: task.id)
             cell.updateDayCountLabel(with: updatedCount)
@@ -186,7 +187,8 @@ final class TaskListViewController: UIViewController, UISearchBarDelegate,
     
     func collectionView(_ collectionView: UICollectionView, viewForSupplementaryElementOfKind kind: String, at indexPath: IndexPath) -> UICollectionReusableView {
         let header = collectionView.dequeueReusableSupplementaryView(ofKind: kind, withReuseIdentifier: SectionHeaderCollectionView.trackerHeaderIdentifier, for: indexPath) as! SectionHeaderCollectionView
-        header.createHeader(with: viewModel.categories[indexPath.section].title)
+        guard let fetchedHeaders = viewModel.fetchAllCategories() else { return UICollectionReusableView() }
+        header.createHeader(with: fetchedHeaders[indexPath.section].title)
         return header
     }
     
@@ -194,8 +196,10 @@ final class TaskListViewController: UIViewController, UISearchBarDelegate,
     
     func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, referenceSizeForHeaderInSection section: Int) -> CGSize {
         if viewModel.hasTasksForToday(in: section) {
+            activePlaceholderImage(isActive: false)
             return CGSize(width: collectionView.bounds.width, height: 18)
         } else {
+            activePlaceholderImage(isActive: true)
             return .zero
         }
     }
@@ -217,6 +221,7 @@ final class TaskListViewController: UIViewController, UISearchBarDelegate,
             placeholderImage.isHidden = true
             placeholderLabel.isHidden = true
         }
+        collectionView.reloadData()
     }
     
     // MARK: - Actions
@@ -224,11 +229,9 @@ final class TaskListViewController: UIViewController, UISearchBarDelegate,
     @objc private func buttonCreateTracker() {
         let typeSelectionVC = TypeSelectionViewController()
         
-        typeSelectionVC.onTaskCreated = { [weak self] (category, newTask) in
+        typeSelectionVC.onTaskCreated = { [weak self] in
             guard let self else { return }
-            self.viewModel.listTask(category: category, tracker: newTask)
-            self.activePlaceholderImage(isActive: self.viewModel.tasksForDate(viewModel.selectedDay).isEmpty)
-            self.collectionView.reloadData()
+            self.activePlaceholderImage(isActive: self.viewModel.fetchTasksForDate(viewModel.selectedDay).isEmpty)
         }
         
         typeSelectionVC.onClose = { [weak self] in
@@ -243,8 +246,7 @@ final class TaskListViewController: UIViewController, UISearchBarDelegate,
         
         viewModel.onSelectedDayChanged = { [weak self] in
             guard let self = self else { return }
-            self.activePlaceholderImage(isActive: self.viewModel.tasksForDate(viewModel.selectedDay).isEmpty)
-            self.collectionView.reloadData()
+            self.activePlaceholderImage(isActive: self.viewModel.fetchTasksForDate(viewModel.selectedDay).isEmpty)
         }
         viewModel.selectedDay = sender.date
     }
