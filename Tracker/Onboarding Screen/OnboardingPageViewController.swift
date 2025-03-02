@@ -1,10 +1,9 @@
-
-
 import UIKit
 
 final class OnboardingPageViewController: UIViewController {
     private let imageName: String
     private let descriptionText: String
+    var onSkipTapped: (() -> Void)?
     
     private lazy var imageView: UIImageView = {
         let imageView = UIImageView(image: UIImage(named: imageName))
@@ -18,6 +17,16 @@ final class OnboardingPageViewController: UIViewController {
         descriptionLabel.text = descriptionText
         descriptionLabel.numberOfLines = 0
         return descriptionLabel
+    }()
+    
+    private lazy var skipOnboardingButton: UIButton = {
+        let button = UIButton(type: .system)
+        button.applyCustomStyle(title: "Вот это технологии!", forState: .normal,
+                                titleFont: .systemFont(ofSize: 16), titleColor: .white, titleColorState: .normal,
+                                backgroundColor: .ccBlack,
+                                cornerRadius: 16)
+        button.addTarget(self, action: #selector(skipTapped), for: .touchUpInside)
+        return button
     }()
     
     init(imageName: String, description: String) {
@@ -37,7 +46,7 @@ final class OnboardingPageViewController: UIViewController {
     }
     
     private func setupUI() {
-        [imageView, descriptionLabel].forEach {
+        [imageView, descriptionLabel, skipOnboardingButton].forEach {
             view.addSubview($0)
             $0.translatesAutoresizingMaskIntoConstraints = false
         }
@@ -52,7 +61,17 @@ final class OnboardingPageViewController: UIViewController {
             
             descriptionLabel.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 16),
             descriptionLabel.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -16),
-            descriptionLabel.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -270)
+            descriptionLabel.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -270),
+            
+            skipOnboardingButton.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 20),
+            skipOnboardingButton.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -20),
+            skipOnboardingButton.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -50),
+            skipOnboardingButton.heightAnchor.constraint(equalToConstant: 60)
         ])
     }
+    
+    @objc private func skipTapped() {
+        onSkipTapped?()
+    }
 }
+
