@@ -54,8 +54,8 @@ final class ColorCell: UICollectionViewCell {
             mainColorContainer.layer.cornerRadius = 8
             mainColorContainer.layer.borderColor = selectedColor.cgColor.copy(alpha: 0.3)
         } else {
-            color.backgroundColor = selectedColor
             mainColorContainer.layer.borderWidth = 0
         }
+        color.backgroundColor = selectedColor
     }
 }
