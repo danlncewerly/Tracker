@@ -80,6 +80,19 @@ final class TrackerRecordStore: NSObject, NSFetchedResultsControllerDelegate {
         coreData.saveContext()
     }
     
+    func removeAllRecords(for trackerId: UUID) {
+        guard let fetchedRecords = fetchedResultsController?.fetchedObjects else { return }
+        
+        let filteredRecords = fetchedRecords.filter { $0.tracker?.id == trackerId }
+        
+        filteredRecords.forEach { record in
+            coreData.context.delete(record)
+        }
+        
+        coreData.saveContext()
+    }
+
+    
     func fetchAllRecords() -> [TrackerRecord] {
         let fetchRequest: NSFetchRequest<CDTrackerRecord> = CDTrackerRecord.fetchRequest()
         do {

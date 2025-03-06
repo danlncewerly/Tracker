@@ -4,5 +4,5 @@ import Foundation
 
 struct TrackerCategory {
     let title: String
-    let tasks: [Tracker]
+    var tasks: [Tracker]
 }
